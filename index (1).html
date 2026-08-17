@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111827">
+  <meta name="description" content="Random food wheel spinner">
+  <title>Food Wheel</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+      display: flex;
+      justify-content: center;
+    }
+
+    .app {
+      width: min(100%, 720px);
+      padding: 20px 16px 40px;
+    }
+
+    h1 {
+      text-align: center;
+      margin: 8px 0 18px;
+      font-size: 32px;
+    }
+
+    .wheel-wrap {
+      position: relative;
+      width: min(90vw, 520px);
+      aspect-ratio: 1;
+      margin: 0 auto 20px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 8px 30px rgba(0,0,0,.15);
+    }
+
+    .pointer {
+      position: absolute;
+      top: -4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 17px solid transparent;
+      border-right: 17px solid transparent;
+      border-top: 34px solid #111827;
+      z-index: 2;
+      filter: drop-shadow(0 2px 2px rgba(0,0,0,.25));
+    }
+
+    .spin-btn {
+      display: block;
+      margin: 0 auto 18px;
+      width: min(90%, 360px);
+      padding: 16px;
+      border: 0;
+      border-radius: 14px;
+      background: #111827;
+      color: white;
+      font-size: 22px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .spin-btn:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+
+    .result {
+      min-height: 58px;
+      background: white;
+      border-radius: 14px;
+      padding: 14px 18px;
+      text-align: center;
+      box-shadow: 0 3px 12px rgba(0,0,0,.08);
+      margin-bottom: 18px;
+    }
+
+    .result-label {
+      font-size: 13px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .winner {
+      font-size: 25px;
+      font-weight: bold;
+      margin-top: 3px;
+    }
+
+    .panel {
+      background: white;
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 3px 12px rgba(0,0,0,.08);
+    }
+
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 20px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    input {
+      flex: 1;
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      font-size: 16px;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .add-btn, .secondary-btn, .danger-btn {
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 14px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .add-btn {
+      background: #2563eb;
+      color: white;
+    }
+
+    .secondary-btn {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .danger-btn {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .options {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .options li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .options li:last-child {
+      border-bottom: 0;
+    }
+
+    .option-name {
+      overflow-wrap: anywhere;
+    }
+
+    .remove-btn {
+      flex: 0 0 auto;
+      border: 0;
+      background: transparent;
+      color: #dc2626;
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px 8px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    .empty {
+      color: #6b7280;
+      text-align: center;
+      padding: 15px 0;
+    }
+
+    .note {
+      color: #6b7280;
+      font-size: 13px;
+      margin-top: 12px;
+      line-height: 1.4;
+    }
+
+    @media (max-width: 480px) {
+      .app { padding-top: 10px; }
+      h1 { font-size: 28px; }
+      .input-row { flex-wrap: wrap; }
+      .add-btn { width: 100%; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <h1>Food Wheel</h1>
+
+    <div class="wheel-wrap">
+      <div class="pointer"></div>
+      <canvas id="wheel" width="700" height="700"></canvas>
+    </div>
+
+    <button id="spinBtn" class="spin-btn">SPIN</button>
+
+    <div class="result">
+      <div class="result-label">Result</div>
+      <div id="winner" class="winner">—</div>
+    </div>
+
+    <section class="panel">
+      <h2>Food Options</h2>
+
+      <div class="input-row">
+        <input id="foodInput" type="text" placeholder="Enter a food..." maxlength="40">
+        <button id="addBtn" class="add-btn">Add</button>
+      </div>
+
+      <ul id="optionsList" class="options"></ul>
+
+      <div class="controls">
+        <button id="clearBtn" class="secondary-btn">Clear All</button>
+        <button id="resetBtn" class="secondary-btn">Reset Defaults</button>
+        <button id="removeWinnerBtn" class="danger-btn">Remove Winner</button>
+      </div>
+
+      <div class="note">
+        Your options are saved in this browser automatically. Changes are local to the device unless you later add a shared database.
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const DEFAULT_OPTIONS = [
+      "Chicken Rice",
+      "Nasi Lemak",
+      "McDonald's",
+      "Pizza",
+      "Mala",
+      "Ramen",
+      "KFC",
+      "Burger",
+      "Sushi",
+      "Korean Food"
+    ];
+
+    let options = JSON.parse(localStorage.getItem("foodWheelOptions")) || DEFAULT_OPTIONS.slice();
+    let rotation = 0;
+    let spinning = false;
+    let lastWinner = null;
+
+    const canvas = document.getElementById("wheel");
+    const ctx = canvas.getContext("2d");
+    const spinBtn = document.getElementById("spinBtn");
+    const foodInput = document.getElementById("foodInput");
+    const addBtn = document.getElementById("addBtn");
+    const optionsList = document.getElementById("optionsList");
+    const winnerEl = document.getElementById("winner");
+    const clearBtn = document.getElementById("clearBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const removeWinnerBtn = document.getElementById("removeWinnerBtn");
+
+    function saveOptions() {
+      localStorage.setItem("foodWheelOptions", JSON.stringify(options));
+    }
+
+    function renderOptions() {
+      optionsList.innerHTML = "";
+
+      if (options.length === 0) {
+        optionsList.innerHTML = '<li class="empty">No food options. Add some above.</li>';
+        spinBtn.disabled = true;
+        drawWheel();
+        return;
+      }
+
+      spinBtn.disabled = false;
+
+      options.forEach((option, index) => {
+        const li = document.createElement("li");
+
+        const span = document.createElement("span");
+        span.className = "option-name";
+        span.textContent = option;
+
+        const remove = document.createElement("button");
+        remove.className = "remove-btn";
+        remove.textContent = "×";
+        remove.title = "Remove " + option;
+        remove.onclick = () => {
+          if (spinning) return;
+          options.splice(index, 1);
+          saveOptions();
+          renderOptions();
+        };
+
+        li.appendChild(span);
+        li.appendChild(remove);
+        optionsList.appendChild(li);
+      });
+
+      drawWheel();
+    }
+
+    function addOption() {
+      const value = foodInput.value.trim();
+
+      if (!value) return;
+
+      options.push(value);
+      foodInput.value = "";
+      saveOptions();
+      renderOptions();
+      foodInput.focus();
+    }
+
+    addBtn.addEventListener("click", addOption);
+
+    foodInput.addEventListener("keydown", event => {
+      if (event.key === "Enter") addOption();
+    });
+
+    clearBtn.addEventListener("click", () => {
+      if (spinning) return;
+      options = [];
+      lastWinner = null;
+      winnerEl.textContent = "—";
+      saveOptions();
+      renderOptions();
+    });
+
+    resetBtn.addEventListener("click", () => {
+      if (spinning) return;
+      options = DEFAULT_OPTIONS.slice();
+      lastWinner = null;
+      winnerEl.textContent = "—";
+      saveOptions();
+      renderOptions();
+    });
+
+    removeWinnerBtn.addEventListener("click", () => {
+      if (spinning || lastWinner === null) return;
+
+      const index = options.indexOf(lastWinner);
+      if (index !== -1) {
+        options.splice(index, 1);
+        saveOptions();
+        lastWinner = null;
+        renderOptions();
+      }
+    });
+
+    function drawWheel() {
+      const size = canvas.width;
+      const center = size / 2;
+      const radius = size / 2 - 8;
+
+      ctx.clearRect(0, 0, size, size);
+
+      if (options.length === 0) {
+        ctx.beginPath();
+        ctx.arc(center, center, radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#e5e7eb";
+        ctx.fill();
+
+        ctx.fillStyle = "#6b7280";
+        ctx.font = "bold 28px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Add food options", center, center);
+        return;
+      }
+
+      const slice = (Math.PI * 2) / options.length;
+
+      for (let i = 0; i < options.length; i++) {
+        const start = rotation + i * slice - Math.PI / 2;
+        const end = start + slice;
+
+        ctx.beginPath();
+        ctx.moveTo(center, center);
+        ctx.arc(center, center, radius, start, end);
+        ctx.closePath();
+
+        ctx.fillStyle = `hsl(${(i * 360 / options.length) % 360}, 75%, 62%)`;
+        ctx.fill();
+
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Text
+        ctx.save();
+        ctx.translate(center, center);
+        ctx.rotate(start + slice / 2);
+
+        ctx.fillStyle = "#111827";
+        ctx.font = `bold ${Math.max(14, Math.min(24, 300 / options.length))}px Arial`;
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+
+        let text = options[i];
+        const maxChars = Math.max(8, Math.floor(30 / Math.max(1, options.length / 8)));
+        if (text.length > maxChars) {
+          text = text.substring(0, maxChars - 1) + "…";
+        }
+
+        ctx.fillText(text, radius - 25, 0);
+        ctx.restore();
+      }
+
+      // Centre
+      ctx.beginPath();
+      ctx.arc(center, center, 48, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.strokeStyle = "#d1d5db";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    function getWinnerIndex() {
+      // Pointer is at the top. Convert the wheel rotation to the slice
+      // currently underneath the pointer.
+      const slice = (Math.PI * 2) / options.length;
+      let angle = (Math.PI * 1.5 - rotation) % (Math.PI * 2);
+
+      if (angle < 0) angle += Math.PI * 2;
+
+      return Math.floor(angle / slice) % options.length;
+    }
+
+    function spin() {
+      if (spinning || options.length === 0) return;
+
+      spinning = true;
+      spinBtn.disabled = true;
+      winnerEl.textContent = "Spinning...";
+      lastWinner = null;
+
+      const winnerIndex = Math.floor(Math.random() * options.length);
+      const slice = (Math.PI * 2) / options.length;
+
+      // Target rotation puts the middle of the selected slice at the top.
+      const targetRelative =
+        Math.PI * 1.5 - (winnerIndex + 0.5) * slice;
+
+      let current = rotation % (Math.PI * 2);
+      if (current < 0) current += Math.PI * 2;
+
+      let delta = targetRelative - current;
+      if (delta < 0) delta += Math.PI * 2;
+
+      // Add several full rotations for the animation.
+      const extraSpins = 6 + Math.floor(Math.random() * 3);
+      const targetRotation = rotation + extraSpins * Math.PI * 2 + delta;
+
+      const startRotation = rotation;
+      const duration = 4200;
+      const startTime = performance.now();
+
+      function animate(now) {
+        const progress = Math.min((now - startTime) / duration, 1);
+
+        // Ease-out cubic.
+        const eased = 1 - Math.pow(1 - progress, 3);
+
+        rotation = startRotation + (targetRotation - startRotation) * eased;
+        drawWheel();
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          rotation = targetRotation;
+          drawWheel();
+
+          lastWinner = options[winnerIndex];
+          winnerEl.textContent = lastWinner;
+
+          spinning = false;
+          spinBtn.disabled = false;
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    spinBtn.addEventListener("click", spin);
+
+    // Make the canvas crisp on high-DPI screens while preserving its size.
+    function resizeCanvasForDPR() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+
+      // Draw using logical CSS pixels.
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawWheelDPR(rect.width, rect.height);
+    }
+
+    function drawWheelDPR(width, height) {
+      const center = Math.min(width, height) / 2;
+      const radius = center - 8;
+
+      ctx.clearRect(0, 0, width, height);
+
+      if (options.length === 0) {
+        ctx.beginPath();
+        ctx.arc(center, center, radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#e5e7eb";
+        ctx.fill();
+
+        ctx.fillStyle = "#6b7280";
+        ctx.font = "bold 28px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Add food options", center, center);
+        return;
+      }
+
+      const slice = (Math.PI * 2) / options.length;
+
+      for (let i = 0; i < options.length; i++) {
+        const start = rotation + i * slice - Math.PI / 2;
+        const end = start + slice;
+
+        ctx.beginPath();
+        ctx.moveTo(center, center);
+        ctx.arc(center, center, radius, start, end);
+        ctx.closePath();
+
+        ctx.fillStyle = `hsl(${(i * 360 / options.length) % 360}, 75%, 62%)`;
+        ctx.fill();
+
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(center, center);
+        ctx.rotate(start + slice / 2);
+
+        ctx.fillStyle = "#111827";
+        ctx.font = `bold ${Math.max(12, Math.min(22, 280 / options.length))}px Arial`;
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+
+        let text = options[i];
+        const maxChars = Math.max(8, Math.floor(28 / Math.max(1, options.length / 8)));
+        if (text.length > maxChars) {
+          text = text.substring(0, maxChars - 1) + "…";
+        }
+
+        ctx.fillText(text, radius - 20, 0);
+        ctx.restore();
+      }
+
+      ctx.beginPath();
+      ctx.arc(center, center, Math.min(48, center * .13), 0, Math.PI * 2);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.strokeStyle = "#d1d5db";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Override drawWheel to use the crisp responsive version.
+    function redraw() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawWheelDPR(rect.width, rect.height);
+    }
+
+    // Use redraw everywhere after initial setup.
+    const originalDrawWheel = drawWheel;
+    window.drawWheel = redraw;
+
+    // Initial rendering.
+    redraw();
+    renderOptions();
+
+    window.addEventListener("resize", redraw);
+  </script>
+</body>
+</html>
